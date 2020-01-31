@@ -1,0 +1,80 @@
+<project name="StockTrader" basedir="." default="main" xmlns:ivy="antlib:org.apache.ivy.ant">
+	
+	<property environment="env"/>
+	
+	<property name="ivy.install.version" value="2.1.0-rc2" />
+	<property name="ivy.jar.dir" value="${basedir}/ivy" />
+    <property name="ivy.jar.file" value="${ivy.jar.dir}/ivy.jar" />
+	
+    <property name="src.dir"     value="src"/>
+    <property name="build.dir"   value="build"/>
+    <property name="classes.dir" value="${build.dir}/classes"/>
+	<property name="conf.dir" 	 value="${build.dir}/conf"/>
+    <property name="jar.dir"     value="${build.dir}/jar"/>
+ 	<property name="lib.dir"     value="lib"/>
+
+    <path id="classpath">
+        <fileset dir="${lib.dir}" includes="**/*.jar"/>
+    </path>
+	
+    <target name="download-ivy" unless="offline">
+
+        <mkdir dir="${ivy.jar.dir}"/>
+        <!-- download Ivy from web site so that it can be used even without any special installation -->
+        <get src="https://repo1.maven.org/maven2/org/apache/ivy/ivy/${ivy.install.version}/ivy-${ivy.install.version}.jar" 
+             dest="${ivy.jar.file}" usetimestamp="true"/>
+    </target>
+
+    <target name="install-ivy" depends="download-ivy">
+      <!-- try to load ivy here from ivy home, in case the user has not already dropped
+              it into ant's lib dir (note that the latter copy will always take precedence).
+              We will not fail as long as local lib dir exists (it may be empty) and
+              ivy is in at least one of ant's lib dir or the local lib dir. -->
+        <path id="ivy.lib.path">
+            <fileset dir="${ivy.jar.dir}" includes="*.jar"/>
+
+        </path>
+        <taskdef resource="org/apache/ivy/ant/antlib.xml" uri="antlib:org.apache.ivy.ant" classpathref="ivy.lib.path"/>
+    </target>
+	
+	<target name="resolve" description="--> retrieve dependencies with ivy">
+        <ivy:retrieve />
+    </target>
+	
+	<property name="main-class-trader"  value="com.disposis.StockTrader.StockTrader"/>
+
+    <target name="clean">
+        <delete dir="${build.dir}"/>
+    </target>
+
+    <target name="compile" depends="install-ivy,resolve">
+        <mkdir dir="${classes.dir}"/>
+        <javac srcdir="${src.dir}" destdir="${classes.dir}" debug="true" debuglevel="lines,vars,source" optimize="off" includeantruntime="false">
+        	<classpath refid="classpath" />
+        </javac>
+    </target>
+	
+	<target name="jar-trader" depends="compile">
+        <mkdir dir="${jar.dir}"/>
+        <jar destfile="${jar.dir}/StockTrader.jar" basedir="${classes.dir}">
+        	<fileset dir="${src.dir}/resources"/>    	
+        	<zipgroupfileset dir="lib" includes="*.jar" excludes=""/>
+            <manifest>
+                <attribute name="Main-Class" value="${main-class-trader}"/>
+            </manifest>
+        </jar>
+    </target>
+	
+	<target name="test" depends="jar-trader">
+		<java fork="true" classname="${main-class-trader}">
+	        <classpath>
+	            <path refid="classpath"/>
+	            <path location="${jar.dir}/StockTrader.jar"/>
+	        </classpath>
+			<arg line="test" />
+	    </java>
+    </target>
+	
+	<target name="main" depends="clean,jar-trader"/>
+
+</project>
